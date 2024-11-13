@@ -352,8 +352,8 @@ def build(image_set, args):
     assert root.exists(), f'provided COCO path {root} does not exist'
     mode = 'instances'
     PATHS = {
-        "train_vid": [(root / "Data" , root / "annotations" / 'sky_data_vid_train.json')],
-        "val": [(root / "Data" , root / "annotations" / 'sky_data_vid_val.json')],
+        "train_vid": [(root , root /'sky_data3' /'sky_data_vid_train.json')],
+        "val": [(root , root /'sky_data3' /'sky_data_vid_val.json')],
     }
     datasets = []
     for (img_folder, ann_file) in PATHS[image_set]:

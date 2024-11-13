@@ -202,10 +202,10 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                                             hyp=hyp, augment=True, cache=opt.cache_images, rect=opt.rect, rank=rank,
                                             world_size=opt.world_size, workers=opt.workers,
                                             image_weights=opt.image_weights, quad=opt.quad, prefix=colorstr('train: '))
-    mlc = np.concatenate(dataset.labels, 0)[:, 0].max()  # max label class
-    nb = len(dataloader)  # number of batches
-    print(mlc)
-    assert mlc < nc, 'Label class %g exceeds nc=%g in %s. Possible class labels are 0-%g' % (mlc, nc, opt.data, nc - 1)
+    # mlc = np.concatenate(dataset.labels, 0)[:, 0].max()  # max label class
+    # nb = len(dataloader)  # number of batches
+    # print(mlc)
+    # assert mlc < nc, 'Label class %g exceeds nc=%g in %s. Possible class labels are 0-%g' % (mlc, nc, opt.data, nc - 1)
 
     # dataset_train = build_dataset(image_set='train_joint', args=args)
     dataset_train = build_dataset(image_set='train_vid', args=opt)
@@ -226,19 +226,22 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
     batch_sampler_train = torch.utils.data.BatchSampler(
         sampler_train, opt.batch_size, drop_last=True)
 
-    data_loader_train = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
+    dataloader = DataLoader(dataset_train, batch_sampler=batch_sampler_train,
                                    collate_fn=utils.collate_fn, num_workers=opt.num_workers,
                                    pin_memory=True)
-    data_loader_val = DataLoader(dataset_val, opt.batch_size, sampler=sampler_val,
-                                 drop_last=False, collate_fn=utils.collate_fn, num_workers=opt.num_workers,
-                                 pin_memory=True)
+    # testloader = DataLoader(dataset_val, opt.batch_size, sampler=sampler_val,
+    #                              drop_last=False, collate_fn=utils.collate_fn, num_workers=opt.num_workers,
+    #                              pin_memory=True)
 
     # Process 0
     if rank in [-1, 0]:
-        testloader, testdata = create_dataloader_rgb_ir(test_path_rgb, test_path_ir,imgsz_test, batch_size * 2, gs, opt,  # testloader
-                                       hyp=hyp, cache=opt.cache_images and not opt.notest, rect=True, rank=-1,
-                                       world_size=opt.world_size, workers=opt.workers,
-                                       pad=0.5, prefix=colorstr('val: '))
+        testloader = DataLoader(dataset_val, opt.batch_size, sampler=sampler_val,
+                                 drop_last=False, collate_fn=utils.collate_fn, num_workers=opt.num_workers,
+                                 pin_memory=True)
+        # testloader, testdata = create_dataloader_rgb_ir(test_path_rgb, test_path_ir,imgsz_test, batch_size * 2, gs, opt,  # testloader
+        #                                hyp=hyp, cache=opt.cache_images and not opt.notest, rect=True, rank=-1,
+        #                                world_size=opt.world_size, workers=opt.workers,
+        #                                pad=0.5, prefix=colorstr('val: '))
 
         if not opt.resume:
             labels = np.concatenate(dataset.labels, 0)
@@ -519,9 +522,15 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='yolov5s.pt', help='initial weights path')
-    parser.add_argument('--cfg', type=str, default='/home/yl/OD/multispectral-object-detection/models/transformer/yolov5s_fusion_transformer_vedai.yaml', help='model.yaml path')
+    parser.add_argument('--weights', type=str, default='5l.pt', help='initial weights path')
+    parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
     parser.add_argument('--data', type=str, default='./data/multispectral/LLVIP.yaml', help='data.yaml path')
+    parser.add_argument('--vid_path', default='/data/yl/data', type=str)
+    parser.add_argument('--interval1', default=20, type=int)
+    parser.add_argument('--interval2', default=60, type=int)
+    parser.add_argument('--masks', action='store_true',
+                        help="Train segmentation head if the flag is provided")
+    parser.add_argument('--num_ref_frames', default=3, type=int, help='number of reference frames')                 
     parser.add_argument('--hyp', type=str, default='data/hyp.scratch.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--batch-size', type=int, default=2, help='total batch size for all GPUs')
@@ -553,6 +562,8 @@ if __name__ == '__main__':
     parser.add_argument('--bbox_interval', type=int, default=-1, help='Set bounding-box image logging interval for W&B')
     parser.add_argument('--save_period', type=int, default=-1, help='Log model after every "save_period" epoch')
     parser.add_argument('--artifact_alias', type=str, default="latest", help='version of dataset artifact to be used')
+    parser.add_argument('--cache_mode', default=False, action='store_true', help='whether to cache images on memory')
+    parser.add_argument('--eval', action='store_true')
     opt = parser.parse_args()
 
     # FQY  Flag for visualizing the paired training imgs
